@@ -4,6 +4,7 @@
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { Database } from '@/types/database'
+import { SupabaseClient } from '@supabase/supabase-js'
 
 export async function createClient() {
   const cookieStore = await cookies()
@@ -25,7 +26,7 @@ export async function createClient() {
         },
       },
     }
-  )
+  ) as unknown as SupabaseClient<Database>
 }
 
 // Admin client — ใช้ service_role key (bypass RLS)
@@ -50,5 +51,5 @@ export async function createAdminClient() {
         },
       },
     }
-  )
+  ) as unknown as SupabaseClient<Database>
 }

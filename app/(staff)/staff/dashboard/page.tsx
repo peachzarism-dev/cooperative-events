@@ -38,10 +38,10 @@ export default async function StaffDashboardPage() {
       {/* Greeting */}
       <div>
         <h1 className="text-2xl font-bold text-gray-800">
-          สวัสดี, {profile?.full_name} 👋
+          สวัสดี, {(profile as any)?.full_name || user?.email || ''} 👋
         </h1>
         <p className="text-gray-500 text-sm mt-0.5">
-          {profile?.role === 'admin' ? 'ผู้ดูแลระบบ' : 'เจ้าหน้าที่'} · ภาพรวมระบบลงทะเบียนกิจกรรม
+          {(profile as any)?.role === 'admin' ? 'ผู้ดูแลระบบ' : 'เจ้าหน้าที่'} · ภาพรวมระบบลงทะเบียนกิจกรรม
         </p>
       </div>
 

@@ -100,7 +100,8 @@ export default function EventForm({ event, mode }: Props) {
         closed_message: form.closed_message,
         allow_public: form.allow_public,
         slug,
-        ...(mode === 'create' ? { created_by: user?.id } : { updated_by: user?.id }),
+        created_by: mode === 'create' ? user?.id : undefined,
+        updated_by: mode !== 'create' ? user?.id : undefined,
       }
 
       let eventId = event?.id

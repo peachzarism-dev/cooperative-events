@@ -19,7 +19,7 @@ export type LogAction =
 // DATABASE ROW TYPES
 // ============================================================
 
-export interface Profile {
+export type Profile = {
   id: string
   email: string
   full_name: string
@@ -31,7 +31,7 @@ export interface Profile {
   updated_at: string
 }
 
-export interface CooperativeMember {
+export type CooperativeMember = {
   id: string
   member_no: string
   full_name: string
@@ -42,7 +42,7 @@ export interface CooperativeMember {
   updated_at: string
 }
 
-export interface Event {
+export type Event = {
   id: string
   title: string
   description: string | null
@@ -63,7 +63,7 @@ export interface Event {
   updated_at: string
 }
 
-export interface EventDay {
+export type EventDay = {
   id: string
   event_id: string
   date: string
@@ -72,7 +72,7 @@ export interface EventDay {
   created_at: string
 }
 
-export interface EventCustomField {
+export type EventCustomField = {
   id: string
   event_id: string
   field_name: string
@@ -83,7 +83,7 @@ export interface EventCustomField {
   created_at: string
 }
 
-export interface Registration {
+export type Registration = {
   id: string
   event_id: string
   member_id: string | null
@@ -101,7 +101,7 @@ export interface Registration {
   updated_at: string
 }
 
-export interface CheckIn {
+export type CheckIn = {
   id: string
   registration_id: string
   event_day_id: string | null
@@ -110,7 +110,7 @@ export interface CheckIn {
   note: string | null
 }
 
-export interface LuckyDrawSession {
+export type LuckyDrawSession = {
   id: string
   event_id: string
   prize_label: string
@@ -119,14 +119,14 @@ export interface LuckyDrawSession {
   drawn_by: string | null
 }
 
-export interface LuckyDrawWinner {
+export type LuckyDrawWinner = {
   id: string
   session_id: string
   registration_id: string
   created_at: string
 }
 
-export interface ActivityLog {
+export type ActivityLog = {
   id: string
   actor_id: string | null
   action: LogAction
@@ -140,7 +140,7 @@ export interface ActivityLog {
 // VIEW TYPES
 // ============================================================
 
-export interface EventStats {
+export type EventStats = {
   event_id: string
   title: string
   max_participants: number | null
@@ -155,19 +155,19 @@ export interface EventStats {
 // JOINED / EXTENDED TYPES (for UI)
 // ============================================================
 
-export interface EventWithStats extends Event {
+export type EventWithStats = Event & {
   stats?: EventStats
   event_days?: EventDay[]
   custom_fields?: EventCustomField[]
 }
 
-export interface RegistrationWithDetails extends Registration {
+export type RegistrationWithDetails = Registration & {
   event?: Pick<Event, 'id' | 'title' | 'slug' | 'start_date' | 'end_date' | 'location'>
   member?: Pick<CooperativeMember, 'member_no' | 'full_name'>
   check_ins?: CheckIn[]
 }
 
-export interface CheckInWithDetails extends CheckIn {
+export type CheckInWithDetails = CheckIn & {
   registration?: Pick<Registration, 'full_name' | 'is_member' | 'qr_token'>
   event_day?: EventDay
   staff?: Pick<Profile, 'full_name'>
@@ -177,7 +177,7 @@ export interface CheckInWithDetails extends CheckIn {
 // FORM / INPUT TYPES
 // ============================================================
 
-export interface CreateEventInput {
+export type CreateEventInput = {
   title: string
   description?: string
   location?: string
@@ -197,7 +197,7 @@ export interface CreateEventInput {
   }>
 }
 
-export interface MemberRegistrationInput {
+export type MemberRegistrationInput = {
   event_id: string
   member_id: string
   phone?: string
@@ -205,7 +205,7 @@ export interface MemberRegistrationInput {
   custom_field_values?: Record<string, string | boolean | number>
 }
 
-export interface PublicRegistrationInput {
+export type PublicRegistrationInput = {
   event_id: string
   full_name: string
   phone?: string
@@ -213,7 +213,7 @@ export interface PublicRegistrationInput {
   custom_field_values?: Record<string, string | boolean | number>
 }
 
-export interface CheckInInput {
+export type CheckInInput = {
   qr_token: string
   event_id: string
   event_day_id?: string
@@ -227,19 +227,191 @@ export interface CheckInInput {
 export type Database = {
   public: {
     Tables: {
-      profiles: { Row: Profile; Insert: Partial<Profile>; Update: Partial<Profile> }
-      cooperative_members: { Row: CooperativeMember; Insert: Partial<CooperativeMember>; Update: Partial<CooperativeMember> }
-      events: { Row: Event; Insert: Partial<Event>; Update: Partial<Event> }
-      event_days: { Row: EventDay; Insert: Partial<EventDay>; Update: Partial<EventDay> }
-      event_custom_fields: { Row: EventCustomField; Insert: Partial<EventCustomField>; Update: Partial<EventCustomField> }
-      registrations: { Row: Registration; Insert: Partial<Registration>; Update: Partial<Registration> }
-      check_ins: { Row: CheckIn; Insert: Partial<CheckIn>; Update: Partial<CheckIn> }
-      lucky_draw_sessions: { Row: LuckyDrawSession; Insert: Partial<LuckyDrawSession>; Update: Partial<LuckyDrawSession> }
-      lucky_draw_winners: { Row: LuckyDrawWinner; Insert: Partial<LuckyDrawWinner>; Update: Partial<LuckyDrawWinner> }
-      activity_logs: { Row: ActivityLog; Insert: Partial<ActivityLog>; Update: Partial<ActivityLog> }
+      profiles: {
+        Row: Profile
+        Insert: Partial<Profile>
+        Update: Partial<Profile>
+        Relationships: [
+          {
+            foreignKeyName: "profiles_linked_member_id_fkey"
+            columns: ["linked_member_id"]
+            isOneToOne: false
+            referencedRelation: "cooperative_members"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      cooperative_members: {
+        Row: CooperativeMember
+        Insert: Partial<CooperativeMember>
+        Update: Partial<CooperativeMember>
+        Relationships: []
+      }
+      events: {
+        Row: Event
+        Insert: Partial<Event>
+        Update: Partial<Event>
+        Relationships: [
+          {
+            foreignKeyName: "events_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "events_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      event_days: {
+        Row: EventDay
+        Insert: Partial<EventDay>
+        Update: Partial<EventDay>
+        Relationships: [
+          {
+            foreignKeyName: "event_days_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      event_custom_fields: {
+        Row: EventCustomField
+        Insert: Partial<EventCustomField>
+        Update: Partial<EventCustomField>
+        Relationships: [
+          {
+            foreignKeyName: "event_custom_fields_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      registrations: {
+        Row: Registration
+        Insert: Partial<Registration>
+        Update: Partial<Registration>
+        Relationships: [
+          {
+            foreignKeyName: "registrations_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "registrations_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "cooperative_members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "registrations_cancelled_by_user_id_fkey"
+            columns: ["cancelled_by_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      check_ins: {
+        Row: CheckIn
+        Insert: Partial<CheckIn>
+        Update: Partial<CheckIn>
+        Relationships: [
+          {
+            foreignKeyName: "check_ins_registration_id_fkey"
+            columns: ["registration_id"]
+            isOneToOne: false
+            referencedRelation: "registrations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "check_ins_event_day_id_fkey"
+            columns: ["event_day_id"]
+            isOneToOne: false
+            referencedRelation: "event_days"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "check_ins_checked_in_by_fkey"
+            columns: ["checked_in_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      lucky_draw_sessions: {
+        Row: LuckyDrawSession
+        Insert: Partial<LuckyDrawSession>
+        Update: Partial<LuckyDrawSession>
+        Relationships: [
+          {
+            foreignKeyName: "lucky_draw_sessions_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lucky_draw_sessions_drawn_by_fkey"
+            columns: ["drawn_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      lucky_draw_winners: {
+        Row: LuckyDrawWinner
+        Insert: Partial<LuckyDrawWinner>
+        Update: Partial<LuckyDrawWinner>
+        Relationships: [
+          {
+            foreignKeyName: "lucky_draw_winners_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "lucky_draw_sessions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lucky_draw_winners_registration_id_fkey"
+            columns: ["registration_id"]
+            isOneToOne: false
+            referencedRelation: "registrations"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      activity_logs: {
+        Row: ActivityLog
+        Insert: Partial<ActivityLog>
+        Update: Partial<ActivityLog>
+        Relationships: [
+          {
+            foreignKeyName: "activity_logs_actor_id_fkey"
+            columns: ["actor_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
     }
     Views: {
-      event_stats: { Row: EventStats }
+      event_stats: { Row: EventStats; Relationships: [] }
     }
+    Functions: {}
   }
 }
