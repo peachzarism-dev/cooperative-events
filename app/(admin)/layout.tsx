@@ -1,0 +1,32 @@
+// app/(admin)/layout.tsx
+
+import { createClient } from '@/lib/supabase/server'
+import { redirect } from 'next/navigation'
+import StaffSidebar from '@/components/ui/StaffSidebar'
+
+export default async function AdminLayout({ children }: { children: React.ReactNode }) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+
+  if (!user) redirect('/login')
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('*')
+    .eq('id', user.id)
+    .single()
+
+  if (!profile?.is_active) redirect('/login?error=suspended')
+  if (profile?.role !== 'admin') redirect('/staff/dashboard')
+
+  return (
+    <div className="flex h-screen bg-gray-50 overflow-hidden">
+      <StaffSidebar profile={profile} />
+      <main className="flex-1 overflow-y-auto">
+        <div className="p-6 max-w-7xl mx-auto">
+          {children}
+        </div>
+      </main>
+    </div>
+  )
+}
