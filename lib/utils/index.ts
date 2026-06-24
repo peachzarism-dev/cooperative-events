@@ -7,16 +7,9 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
-/** สร้าง slug จากชื่อกิจกรรม + timestamp */
-export function generateSlug(title: string): string {
-  const timestamp = Date.now().toString(36)
-  const base = title
-    .replace(/[^\u0E00-\u0E7Fa-zA-Z0-9\s]/g, '')
-    .trim()
-    .replace(/\s+/g, '-')
-    .toLowerCase()
-    .slice(0, 40)
-  return `${base}-${timestamp}`
+/** สร้าง slug สั้นสำหรับ URL กิจกรรม */
+export function generateSlug(_title: string): string {
+  return Date.now().toString(36)
 }
 
 /** แปลงวันที่เป็นภาษาไทย */
@@ -53,8 +46,8 @@ export function truncate(str: string, max: number): string {
 
 /** สร้าง URL สำหรับหน้าลงทะเบียน */
 export function getRegistrationUrl(slug: string): string {
-  const base = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
-  return `${base}/events/${slug}`
+  const base = (process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000').replace(/\/$/, '')
+  return `${base}/events/${encodeURIComponent(slug)}`
 }
 
 /** สร้าง URL สำหรับดู QR Code */

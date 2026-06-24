@@ -11,7 +11,7 @@ interface Props {
 export default function QRDisplay({ token, size = 200 }: Props) {
   const url = getQrPageUrl(token)
   return (
-    <div className="p-3 bg-white rounded-2xl shadow-inner border border-gray-100">
+    <div data-ticket-qr className="p-3 bg-white rounded-2xl shadow-inner border border-gray-100">
       <QRCodeSVG
         value={url}
         size={size}

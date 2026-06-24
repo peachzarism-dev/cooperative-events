@@ -5,6 +5,7 @@ import { notFound } from 'next/navigation'
 import { formatDateTH } from '@/lib/utils'
 import { Calendar, MapPin, CheckCircle, XCircle } from 'lucide-react'
 import dynamic from 'next/dynamic'
+import TicketActions from '@/components/registration/TicketActions'
 
 // Dynamic import เพื่อให้ qrcode.react โหลดแบบ client-side
 const QRDisplay = dynamic(() => import('@/components/registration/QRDisplay'), {
@@ -28,6 +29,11 @@ export default async function ConfirmPage({ params }: { params: { token: string 
   const event = reg.events as any
   const isCheckedIn = reg.check_ins && (reg.check_ins as any[]).length > 0
   const isCancelled = reg.status === 'cancelled'
+  const eventDate = event?.start_date
+    ? event.start_date === event.end_date
+      ? formatDateTH(event.start_date)
+      : `${formatDateTH(event.start_date)} — ${formatDateTH(event.end_date)}`
+    : '-'
 
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
@@ -79,11 +85,7 @@ export default async function ConfirmPage({ params }: { params: { token: string 
               {event?.start_date && (
                 <div className="flex items-center gap-2 text-sm text-gray-600">
                   <Calendar className="w-4 h-4 text-gray-400 shrink-0" />
-                  <span>
-                    {event.start_date === event.end_date
-                      ? formatDateTH(event.start_date)
-                      : `${formatDateTH(event.start_date)} — ${formatDateTH(event.end_date)}`}
-                  </span>
+                  <span>{eventDate}</span>
                 </div>
               )}
               {event?.location && (
@@ -101,6 +103,16 @@ export default async function ConfirmPage({ params }: { params: { token: string 
             )}
           </div>
         </div>
+
+        {!isCancelled && (
+          <TicketActions
+            token={params.token}
+            eventTitle={event?.title || 'กิจกรรม'}
+            fullName={reg.full_name}
+            eventDate={eventDate}
+            eventLocation={event?.location}
+          />
+        )}
 
         {/* Cancel link */}
         {!isCancelled && !isCheckedIn && (

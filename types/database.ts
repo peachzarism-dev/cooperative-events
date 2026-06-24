@@ -59,6 +59,8 @@ export type Event = {
   created_by: string | null
   updated_by: string | null
   deleted_at: string | null
+  draw_closed_at: string | null
+  draw_closed_by: string | null
   created_at: string
   updated_at: string
 }

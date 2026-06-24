@@ -12,12 +12,14 @@ export default async function EventRegistrationPage({
   params: { slug: string }
 }) {
   const supabase = await createClient()
+  const decodedSlug = decodeURIComponent(params.slug)
+  const slugCandidates = Array.from(new Set([decodedSlug, params.slug]))
 
   // ดึงข้อมูลกิจกรรม
   const { data: event } = await supabase
     .from('events')
     .select(`*, event_days(*), event_custom_fields(*)`)
-    .eq('slug', params.slug)
+    .in('slug', slugCandidates)
     .is('deleted_at', null)
     .single()
 

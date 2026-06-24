@@ -24,6 +24,7 @@ export default function RegistrationForm({ event, customFields }: Props) {
   const [searchQuery, setSearchQuery] = useState('')
   const [searchResults, setSearchResults] = useState<CooperativeMember[]>([])
   const [searching, setSearching] = useState(false)
+  const [hasSearched, setHasSearched] = useState(false)
   const [selectedMember, setSelectedMember] = useState<CooperativeMember | null>(null)
   const [loading, setLoading] = useState(false)
 
@@ -35,9 +36,76 @@ export default function RegistrationForm({ event, customFields }: Props) {
     custom_fields: {} as Record<string, string | boolean>,
   })
 
+  function emptyFormData() {
+    return {
+      full_name: '',
+      phone: '',
+      email: '',
+      custom_fields: {} as Record<string, string | boolean>,
+    }
+  }
+
+  function resetMemberSearch() {
+    setSearchQuery('')
+    setSearchResults([])
+    setHasSearched(false)
+    setSelectedMember(null)
+  }
+
+  function chooseMemberFlow() {
+    setIsMember(true)
+    setFormData(emptyFormData())
+    resetMemberSearch()
+    setStep('search-member')
+  }
+
+  function choosePublicFlow() {
+    setIsMember(false)
+    setFormData(emptyFormData())
+    resetMemberSearch()
+    setStep('public-form')
+  }
+
+  function normalizePhone(phone: string) {
+    return phone.replace(/\D/g, '')
+  }
+
+  function isValidEmail(email: string) {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
+  }
+
+  function validateForm() {
+    const phone = normalizePhone(formData.phone)
+    const email = formData.email.trim()
+
+    if (!isMember && !formData.full_name.trim()) {
+      toast.error('กรุณากรอกชื่อ-นามสกุล')
+      return false
+    }
+
+    if (formData.phone && phone.length !== 10) {
+      toast.error('กรุณากรอกเบอร์โทรศัพท์ให้ครบ 10 หลัก')
+      return false
+    }
+
+    if (email && !isValidEmail(email)) {
+      toast.error('กรุณากรอกอีเมลให้ถูกต้อง')
+      return false
+    }
+
+    return true
+  }
+
   // ─── ค้นหาสมาชิก ───────────────────────────────────────────
   async function searchMembers() {
-    if (searchQuery.trim().length < 2) return
+    setHasSearched(true)
+    setSearchResults([])
+
+    if (searchQuery.trim().length < 2) {
+      toast.error('กรุณากรอกอย่างน้อย 2 ตัวอักษร')
+      return
+    }
+
     setSearching(true)
     const q = searchQuery.trim()
     const { data } = await supabase
@@ -78,44 +146,92 @@ export default function RegistrationForm({ event, customFields }: Props) {
     setStep('confirm-member')
   }
 
-  // ─── ตรวจสอบ email ซ้ำ (บุคคลทั่วไป) ──────────────────────
-  async function checkEmailDuplicate(email: string): Promise<boolean> {
-    if (!email) return false
-    const { data } = await supabase
-      .from('registrations')
-      .select('id, status')
-      .eq('event_id', event.id)
-      .eq('email', email)
-      .eq('status', 'active')
-      .single()
-    return !!data
+  // ─── ตรวจสอบการลงทะเบียนซ้ำ ───────────────────────────────
+  async function checkDuplicateRegistration() {
+    const checks = []
+    const phone = normalizePhone(formData.phone)
+    const email = formData.email.trim()
+    const fullName = formData.full_name.trim()
+
+    if (selectedMember?.id) {
+      checks.push(
+        supabase
+          .from('registrations')
+          .select('id')
+          .eq('event_id', event.id)
+          .eq('member_id', selectedMember.id)
+          .eq('status', 'active')
+          .limit(1)
+      )
+    }
+
+    if (email) {
+      checks.push(
+        supabase
+          .from('registrations')
+          .select('id')
+          .eq('event_id', event.id)
+          .ilike('email', email)
+          .eq('status', 'active')
+          .limit(1)
+      )
+    }
+
+    if (phone) {
+      checks.push(
+        supabase
+          .from('registrations')
+          .select('id')
+          .eq('event_id', event.id)
+          .eq('phone', phone)
+          .eq('status', 'active')
+          .limit(1)
+      )
+    }
+
+    if (!isMember && fullName && phone) {
+      checks.push(
+        supabase
+          .from('registrations')
+          .select('id')
+          .eq('event_id', event.id)
+          .ilike('full_name', fullName)
+          .eq('phone', phone)
+          .eq('status', 'active')
+          .limit(1)
+      )
+    }
+
+    if (!checks.length) return false
+
+    const results = await Promise.all(checks)
+    return results.some(result => (result.data?.length || 0) > 0)
   }
 
   // ─── Submit ─────────────────────────────────────────────────
   async function handleSubmit() {
+    if (!validateForm()) return
+
     setLoading(true)
 
     try {
-      // ตรวจสอบ email ซ้ำสำหรับบุคคลทั่วไป
-      if (!isMember && formData.email) {
-        const isDuplicate = await checkEmailDuplicate(formData.email)
-        if (isDuplicate) {
-          toast.error('อีเมลนี้เคยลงทะเบียนกิจกรรมนี้แล้ว', {
-            description: 'หากต้องการยกเลิก กรุณาคลิกที่ลิงก์ในอีเมลที่ได้รับ',
-            duration: 6000,
-          })
-          setLoading(false)
-          return
-        }
+      const isDuplicate = await checkDuplicateRegistration()
+      if (isDuplicate) {
+        toast.error('พบข้อมูลที่เคยลงทะเบียนกิจกรรมนี้แล้ว', {
+          description: 'หากต้องการยกเลิก กรุณาคลิกที่ลิงก์ในอีเมลที่ได้รับ หรือติดต่อเจ้าหน้าที่',
+          duration: 6000,
+        })
+        setLoading(false)
+        return
       }
 
       const payload = {
         event_id: event.id,
         member_id: selectedMember?.id || null,
         is_member: isMember,
-        full_name: formData.full_name,
-        phone: formData.phone || null,
-        email: formData.email || null,
+        full_name: formData.full_name.trim(),
+        phone: formData.phone ? normalizePhone(formData.phone) : null,
+        email: formData.email.trim() || null,
         custom_field_values: Object.keys(formData.custom_fields).length > 0
           ? formData.custom_fields
           : null,
@@ -180,7 +296,7 @@ export default function RegistrationForm({ event, customFields }: Props) {
           <p className="text-gray-500 text-sm mb-6">กรุณาเลือกประเภทของท่าน</p>
           <div className="grid grid-cols-1 gap-3">
             <button
-              onClick={() => { setIsMember(true); setStep('search-member') }}
+              onClick={chooseMemberFlow}
               className="flex items-center gap-4 p-4 rounded-xl border-2 border-primary-200 bg-primary-50 hover:border-primary-500 hover:bg-primary-100 transition-all text-left"
             >
               <div className="w-12 h-12 rounded-xl bg-primary-600 flex items-center justify-center shrink-0">
@@ -195,7 +311,7 @@ export default function RegistrationForm({ event, customFields }: Props) {
 
             {event.allow_public && (
               <button
-                onClick={() => { setIsMember(false); setStep('public-form') }}
+                onClick={choosePublicFlow}
                 className="flex items-center gap-4 p-4 rounded-xl border-2 border-gray-200 bg-gray-50 hover:border-gray-400 hover:bg-gray-100 transition-all text-left"
               >
                 <div className="w-12 h-12 rounded-xl bg-gray-600 flex items-center justify-center shrink-0">
@@ -216,7 +332,13 @@ export default function RegistrationForm({ event, customFields }: Props) {
       {step === 'search-member' && (
         <div className="card p-6">
           <div className="flex items-center gap-3 mb-5">
-            <button onClick={() => setStep('choose-type')} className="text-gray-400 hover:text-gray-600">
+            <button
+              onClick={() => {
+                resetMemberSearch()
+                setStep('choose-type')
+              }}
+              className="text-gray-400 hover:text-gray-600"
+            >
               <X className="w-5 h-5" />
             </button>
             <h2 className="text-lg font-semibold text-gray-800">ค้นหาสมาชิก</h2>
@@ -225,7 +347,11 @@ export default function RegistrationForm({ event, customFields }: Props) {
             <input
               type="text"
               value={searchQuery}
-              onChange={e => setSearchQuery(e.target.value)}
+              onChange={e => {
+                setSearchQuery(e.target.value)
+                setSearchResults([])
+                setHasSearched(false)
+              }}
               onKeyDown={e => e.key === 'Enter' && searchMembers()}
               className="input flex-1"
               placeholder="ชื่อ-นามสกุล หรือ เลขสมาชิก"
@@ -262,7 +388,7 @@ export default function RegistrationForm({ event, customFields }: Props) {
             </div>
           )}
 
-          {searchResults.length === 0 && searchQuery && !searching && (
+          {searchResults.length === 0 && hasSearched && !searching && (
             <p className="text-center text-gray-500 text-sm py-6">
               ไม่พบข้อมูลสมาชิก กรุณาตรวจสอบชื่อหรือเลขสมาชิก
             </p>
@@ -275,7 +401,13 @@ export default function RegistrationForm({ event, customFields }: Props) {
         <div className="card p-6">
           <div className="flex items-center gap-3 mb-5">
             <button
-              onClick={() => setStep(isMember ? 'search-member' : 'choose-type')}
+              onClick={() => {
+                if (!isMember) {
+                  setFormData(emptyFormData())
+                  resetMemberSearch()
+                }
+                setStep(isMember ? 'search-member' : 'choose-type')
+              }}
               className="text-gray-400 hover:text-gray-600"
             >
               <X className="w-5 h-5" />
@@ -322,9 +454,10 @@ export default function RegistrationForm({ event, customFields }: Props) {
               <input
                 type="tel"
                 value={formData.phone}
-                onChange={e => setFormData(p => ({ ...p, phone: e.target.value }))}
+                onChange={e => setFormData(p => ({ ...p, phone: normalizePhone(e.target.value).slice(0, 10) }))}
                 className="input"
-                placeholder="08X-XXX-XXXX"
+                placeholder="08XXXXXXXX"
+                maxLength={10}
               />
             </div>
 
