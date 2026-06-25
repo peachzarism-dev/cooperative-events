@@ -1,10 +1,19 @@
-// lib/email/index.ts — ส่ง email ด้วย Resend
+// lib/email/index.ts — ส่ง email ด้วย Nodemailer (Gmail SMTP)
 
-import { Resend } from 'resend'
+import nodemailer from 'nodemailer'
 import { getQrPageUrl, formatDateTH } from '@/lib/utils'
 
-const resend = new Resend(process.env.RESEND_API_KEY)
-const FROM = `${process.env.RESEND_FROM_NAME || 'ระบบลงทะเบียน'} <${process.env.RESEND_FROM_EMAIL || 'noreply@example.com'}>`
+// 1. สร้าง Transporter สำหรับเชื่อมต่อกับ Gmail
+const transporter = nodemailer.createTransport({
+  service: 'gmail',
+  auth: {
+    user: process.env.EMAIL_USER, // อีเมล Gmail ของคุณ (เช่น your_gmail@gmail.com)
+    pass: process.env.EMAIL_PASS, // รหัสผ่านแอป 16 หลัก (App Password)
+  },
+})
+
+// ตั้งค่าชื่อผู้ส่ง โดยใช้เมล์เราเป็นตัวส่งหลัก
+const FROM = `"${process.env.RESEND_FROM_NAME || 'ระบบลงทะเบียน'}" <${process.env.EMAIL_USER}>`
 
 // ─── ส่ง QR Code หลังลงทะเบียนสำเร็จ ────────────────────────
 export async function sendRegistrationEmail(opts: {
@@ -24,18 +33,15 @@ export async function sendRegistrationEmail(opts: {
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
 <body style="margin:0;padding:0;background:#f3f4f6;font-family:'Sarabun',sans-serif">
   <div style="max-width:560px;margin:32px auto;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,.08)">
-    <!-- Header -->
     <div style="background:linear-gradient(135deg,#1e40af,#2563eb);padding:32px 24px;text-align:center">
       <h1 style="color:#fff;margin:0;font-size:22px;font-weight:700">ลงทะเบียนสำเร็จ ✅</h1>
       <p style="color:#bfdbfe;margin:8px 0 0;font-size:15px">${opts.eventTitle}</p>
     </div>
-    <!-- Body -->
     <div style="padding:32px 24px">
       <p style="color:#374151;font-size:16px;margin:0 0 16px">เรียน คุณ${opts.fullName}</p>
       <p style="color:#6b7280;font-size:15px;margin:0 0 24px;line-height:1.6">
         ท่านได้ลงทะเบียนเข้าร่วมกิจกรรม <strong style="color:#1e40af">${opts.eventTitle}</strong> เรียบร้อยแล้ว
       </p>
-      <!-- Event Info Box -->
       <div style="background:#eff6ff;border-radius:12px;padding:20px 24px;margin-bottom:28px">
         <table style="width:100%;border-collapse:collapse">
           <tr><td style="color:#6b7280;font-size:13px;padding:4px 0;width:90px">📅 วันที่</td>
@@ -44,7 +50,6 @@ export async function sendRegistrationEmail(opts: {
               <td style="color:#1e3a8a;font-size:14px;font-weight:600">${opts.eventLocation}</td></tr>` : ''}
         </table>
       </div>
-      <!-- QR Section -->
       <p style="color:#374151;font-size:15px;font-weight:600;margin:0 0 12px;text-align:center">
         QR Code สำหรับ Check-in วันงาน
       </p>
@@ -66,7 +71,8 @@ export async function sendRegistrationEmail(opts: {
 </body>
 </html>`
 
-  return resend.emails.send({
+  // เปลี่ยนมาใช้ transporter.sendMail ของ nodemailer
+  return transporter.sendMail({
     from: FROM,
     to: opts.to,
     subject: `✅ ลงทะเบียนสำเร็จ — ${opts.eventTitle}`,
@@ -102,7 +108,8 @@ export async function sendOtpEmail(opts: {
 </body>
 </html>`
 
-  return resend.emails.send({
+  // เปลี่ยนมาใช้ transporter.sendMail ของ nodemailer
+  return transporter.sendMail({
     from: FROM,
     to: opts.to,
     subject: `🔐 รหัส OTP ยืนยันการยกเลิก — ${opts.eventTitle}`,
