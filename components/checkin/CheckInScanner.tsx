@@ -118,6 +118,19 @@ export default function CheckInScanner({ eventId, eventTitle, isMultiDay, eventD
       return
     }
 
+    const selectedDay = eventDays.find(day => day.id === selectedDayId)
+    await supabase.from('activity_logs').insert({
+      actor_id: user?.id,
+      action: 'checkin_completed',
+      target_type: 'registration',
+      target_id: reg.id,
+      metadata: {
+        title: eventTitle,
+        full_name: reg.full_name,
+        event_day: isMultiDay ? selectedDay?.label : null,
+      },
+    })
+
     setLastResult({
       type: 'success',
       name: reg.full_name,

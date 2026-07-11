@@ -212,6 +212,19 @@ export default function LuckyDraw({
       return
     }
 
+    await supabase.from('activity_logs').insert({
+      actor_id: user?.id,
+      action: 'draw_conducted',
+      target_type: 'event',
+      target_id: eventId,
+      metadata: {
+        title: eventTitle,
+        prize_label: prizeLabel,
+        full_name: selected.full_name,
+        draw_pool: pool,
+      },
+    })
+
     const savedWinner: DrawWinner = {
       ...selected,
       session_id: session.id,

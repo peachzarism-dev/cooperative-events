@@ -24,6 +24,12 @@ export async function PATCH(
   }
 
   if (action === 'close') {
+    const { data: event } = await supabase
+      .from('events')
+      .select('title')
+      .eq('id', params.eventId)
+      .single()
+
     const { error } = await supabase
       .from('events')
       .update({
@@ -34,6 +40,15 @@ export async function PATCH(
       .is('deleted_at', null)
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+    await supabase.from('activity_logs').insert({
+      actor_id: user.id,
+      action: 'event_updated',
+      target_type: 'event',
+      target_id: params.eventId,
+      metadata: { title: event?.title, draw_status: 'closed' },
+    })
+
     return NextResponse.json({ drawClosedAt: new Date().toISOString() })
   }
 
@@ -41,6 +56,12 @@ export async function PATCH(
     if (profile.role !== 'admin') {
       return NextResponse.json({ error: 'Admin only' }, { status: 403 })
     }
+
+    const { data: event } = await supabase
+      .from('events')
+      .select('title')
+      .eq('id', params.eventId)
+      .single()
 
     const { error } = await supabase
       .from('events')
@@ -52,6 +73,15 @@ export async function PATCH(
       .is('deleted_at', null)
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+    await supabase.from('activity_logs').insert({
+      actor_id: user.id,
+      action: 'event_updated',
+      target_type: 'event',
+      target_id: params.eventId,
+      metadata: { title: event?.title, draw_status: 'reopened' },
+    })
+
     return NextResponse.json({ drawClosedAt: null })
   }
 

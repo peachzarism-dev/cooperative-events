@@ -240,10 +240,22 @@ export default function RegistrationForm({ event, customFields }: Props) {
       const { data: reg, error } = await supabase
         .from('registrations')
         .insert(payload)
-        .select('qr_token')
+        .select('id, qr_token')
         .single()
 
       if (error) throw error
+
+      await supabase.from('activity_logs').insert({
+        action: 'registration_created',
+        target_type: 'registration',
+        target_id: reg.id,
+        metadata: {
+          title: event.title,
+          full_name: payload.full_name,
+          email: payload.email,
+          is_member: payload.is_member,
+        },
+      })
 
       // ส่ง email ผ่าน API route
       if (formData.email) {

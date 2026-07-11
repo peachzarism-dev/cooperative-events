@@ -84,8 +84,22 @@ export default async function ActivityLogsPage() {
                     </td>
                     <td className="px-5 py-3 text-gray-500 text-xs">
                       {meta?.title && <span className="mr-2">กิจกรรม: {meta.title}</span>}
+                      {meta?.prize_label && <span className="mr-2">รางวัล: {meta.prize_label}</span>}
                       {meta?.full_name && <span className="mr-2">ชื่อ: {meta.full_name}</span>}
+                      {meta?.member_no && <span className="mr-2">เลขสมาชิก: {meta.member_no}</span>}
                       {meta?.email && <span className="mr-2">อีเมล: {meta.email}</span>}
+                      {meta?.event_day && <span className="mr-2">วัน: {meta.event_day}</span>}
+                      {meta?.registration_open === true && <span className="mr-2">เปิดรับลงทะเบียน</span>}
+                      {meta?.registration_open === false && <span className="mr-2">ปิดรับลงทะเบียน</span>}
+                      {meta?.registration_round && <span className="mr-2">รอบที่: {meta.registration_round}</span>}
+                      {meta?.draw_status === 'closed' && <span className="mr-2">จบการจับรางวัล</span>}
+                      {meta?.draw_status === 'reopened' && <span className="mr-2">เปิดให้สุ่มต่อ</span>}
+                      {meta?.file_name && <span className="mr-2">ไฟล์: {meta.file_name}</span>}
+                      {meta?.imported_rows !== undefined && <span className="mr-2">Import: {meta.imported_rows} รายการ</span>}
+                      {meta?.change === 'created' && <span className="mr-2">เพิ่มข้อมูลใหม่</span>}
+                      {meta?.change === 'updated' && <span className="mr-2">แก้ไขข้อมูล</span>}
+                      {meta?.change === 'suspended' && <span className="mr-2">ระงับสมาชิก</span>}
+                      {meta?.change === 'activated' && <span className="mr-2">เปิดใช้งานสมาชิก</span>}
                       {meta?.cancelled_by && (
                         <span>ยกเลิกโดย: {meta.cancelled_by === 'self' ? 'ตัวเอง' : 'เจ้าหน้าที่'}</span>
                       )}

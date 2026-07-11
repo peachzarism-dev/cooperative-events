@@ -134,7 +134,14 @@ export default async function AdminDashboardPage() {
                       <p className="text-sm text-gray-700">
                         {actionLabels[log.action] || log.action}
                         {meta?.title ? ` — ${meta.title}` : ''}
+                        {meta?.prize_label ? ` — ${meta.prize_label}` : ''}
                         {meta?.full_name ? ` (${meta.full_name})` : ''}
+                        {meta?.member_no ? ` #${meta.member_no}` : ''}
+                        {meta?.draw_status === 'closed' ? ' (จบการจับรางวัล)' : ''}
+                        {meta?.draw_status === 'reopened' ? ' (เปิดให้สุ่มต่อ)' : ''}
+                        {meta?.registration_open === true ? ' (เปิดรับลงทะเบียน)' : ''}
+                        {meta?.registration_open === false ? ' (ปิดรับลงทะเบียน)' : ''}
+                        {meta?.imported_rows ? ` (${meta.imported_rows} รายการ)` : ''}
                       </p>
                       <p className="text-xs text-gray-400 mt-0.5">{actor}</p>
                     </div>

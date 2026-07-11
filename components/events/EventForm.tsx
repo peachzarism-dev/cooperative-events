@@ -109,9 +109,23 @@ export default function EventForm({ event, mode }: Props) {
         const { data, error } = await supabase.from('events').insert(eventPayload).select('id').single()
         if (error) throw error
         eventId = data.id
+        await supabase.from('activity_logs').insert({
+          actor_id: user?.id,
+          action: 'event_created',
+          target_type: 'event',
+          target_id: eventId,
+          metadata: { title: form.title, slug },
+        })
       } else {
         const { error } = await supabase.from('events').update(eventPayload).eq('id', eventId!)
         if (error) throw error
+        await supabase.from('activity_logs').insert({
+          actor_id: user?.id,
+          action: 'event_updated',
+          target_type: 'event',
+          target_id: eventId!,
+          metadata: { title: form.title, slug },
+        })
         // ลบวันเดิมและ fields เดิม
         await supabase.from('event_days').delete().eq('event_id', eventId!)
         await supabase.from('event_custom_fields').delete().eq('event_id', eventId!)

@@ -31,6 +31,18 @@ export default function ToggleRegistrationButton({ event }: { event: Event }) {
     if (error) {
       toast.error('เกิดข้อผิดพลาด')
     } else {
+      const { data: { user } } = await supabase.auth.getUser()
+      await supabase.from('activity_logs').insert({
+        actor_id: user?.id,
+        action: 'event_updated',
+        target_type: 'event',
+        target_id: event.id,
+        metadata: {
+          title: event.title,
+          registration_open: newValue,
+          registration_round: updates.registration_round || event.registration_round,
+        },
+      })
       setIsOpen(newValue)
       toast.success(newValue ? 'เปิดรับลงทะเบียนแล้ว' : 'ปิดรับลงทะเบียนแล้ว')
       router.refresh()

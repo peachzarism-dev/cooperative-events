@@ -51,6 +51,17 @@ export default function MembersClient({ initialMembers }: { initialMembers: Coop
         if (error) {
           toast.error('Import ไม่สำเร็จ: ' + error.message)
         } else {
+          const { data: { user } } = await supabase.auth.getUser()
+          await supabase.from('activity_logs').insert({
+            actor_id: user?.id,
+            action: 'member_imported',
+            target_type: 'member',
+            metadata: {
+              file_name: file.name,
+              total_rows: rows.length,
+              imported_rows: inserted?.length || 0,
+            },
+          })
           toast.success(`Import สำเร็จ ${inserted?.length || 0} รายการ`)
           const { data: refreshed } = await supabase
             .from('cooperative_members').select('*').order('member_no')
@@ -83,6 +94,18 @@ export default function MembersClient({ initialMembers }: { initialMembers: Coop
       .select().single()
 
     if (error) { toast.error('เพิ่มสมาชิกไม่สำเร็จ: ' + error.message); return }
+    const { data: { user } } = await supabase.auth.getUser()
+    await supabase.from('activity_logs').insert({
+      actor_id: user?.id,
+      action: 'member_updated',
+      target_type: 'member',
+      target_id: data.id,
+      metadata: {
+        full_name: data.full_name,
+        member_no: data.member_no,
+        change: 'created',
+      },
+    })
     setMembers(prev => [data, ...prev])
     setNewMember({ member_no: '', full_name: '', phone: '', email: '' })
     setShowAddForm(false)
@@ -91,11 +114,24 @@ export default function MembersClient({ initialMembers }: { initialMembers: Coop
 
   // ─── Edit ────────────────────────────────────────────────────
   async function saveEdit(id: string) {
+    const member = members.find(m => m.id === id)
     const { error } = await supabase
       .from('cooperative_members')
       .update(editForm)
       .eq('id', id)
     if (error) { toast.error('บันทึกไม่สำเร็จ'); return }
+    const { data: { user } } = await supabase.auth.getUser()
+    await supabase.from('activity_logs').insert({
+      actor_id: user?.id,
+      action: 'member_updated',
+      target_type: 'member',
+      target_id: id,
+      metadata: {
+        full_name: editForm.full_name,
+        member_no: member?.member_no,
+        change: 'updated',
+      },
+    })
     setMembers(prev => prev.map(m => m.id === id ? { ...m, ...editForm } : m))
     setEditingId(null)
     toast.success('บันทึกสำเร็จ')
@@ -108,6 +144,18 @@ export default function MembersClient({ initialMembers }: { initialMembers: Coop
       .update({ is_active: !member.is_active })
       .eq('id', member.id)
     if (error) { toast.error('เกิดข้อผิดพลาด'); return }
+    const { data: { user } } = await supabase.auth.getUser()
+    await supabase.from('activity_logs').insert({
+      actor_id: user?.id,
+      action: 'member_updated',
+      target_type: 'member',
+      target_id: member.id,
+      metadata: {
+        full_name: member.full_name,
+        member_no: member.member_no,
+        change: member.is_active ? 'suspended' : 'activated',
+      },
+    })
     setMembers(prev => prev.map(m => m.id === member.id ? { ...m, is_active: !m.is_active } : m))
     toast.success(member.is_active ? 'ระงับสมาชิกแล้ว' : 'เปิดใช้งานสมาชิกแล้ว')
   }
