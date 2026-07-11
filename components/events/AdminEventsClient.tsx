@@ -1,7 +1,8 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import Link from 'next/link'
 import { formatDateTH } from '@/lib/utils'
@@ -21,16 +22,50 @@ interface EventWithStats extends Event {
   } | null
 }
 
-export default function AdminEventsClient({ events: initialEvents }: { events: EventWithStats[] }) {
+export default function AdminEventsClient({
+  events: initialEvents,
+  totalEvents,
+  page,
+  pageSize,
+  query,
+  status,
+}: {
+  events: EventWithStats[]
+  totalEvents: number
+  page: number
+  pageSize: number
+  query: string
+  status: string
+}) {
   const supabase = createClient()
+  const router = useRouter()
   const [events, setEvents] = useState(initialEvents)
-  const [search, setSearch] = useState('')
+  const [search, setSearch] = useState(query)
+  const [statusFilter, setStatusFilter] = useState(status)
   const [deletingId, setDeletingId] = useState<string | null>(null)
 
-  const filtered = events.filter(e =>
-    e.title.toLowerCase().includes(search.toLowerCase()) ||
-    (e.location || '').toLowerCase().includes(search.toLowerCase())
-  )
+  useEffect(() => {
+    setEvents(initialEvents)
+    setSearch(query)
+    setStatusFilter(status)
+  }, [initialEvents, query, status])
+
+  const totalPages = Math.max(Math.ceil(totalEvents / pageSize), 1)
+  const firstItem = totalEvents === 0 ? 0 : (page - 1) * pageSize + 1
+  const lastItem = Math.min(page * pageSize, totalEvents)
+
+  function goToPage(nextPage: number, nextQuery = search, nextStatus = statusFilter) {
+    const params = new URLSearchParams()
+    if (nextQuery.trim()) params.set('q', nextQuery.trim())
+    if (nextStatus !== 'all') params.set('status', nextStatus)
+    if (nextPage > 1) params.set('page', nextPage.toString())
+    router.push(`/admin/events${params.toString() ? `?${params.toString()}` : ''}`)
+  }
+
+  function submitSearch(e: React.FormEvent) {
+    e.preventDefault()
+    goToPage(1)
+  }
 
   async function deleteEvent(ev: EventWithStats) {
     const confirmed = confirm(
@@ -56,7 +91,7 @@ export default function AdminEventsClient({ events: initialEvents }: { events: E
     <div className="space-y-4">
       {/* Toolbar */}
       <div className="card p-4 flex flex-wrap gap-3 items-center justify-between">
-        <div className="flex items-center gap-2 flex-1 min-w-0 max-w-sm">
+        <form onSubmit={submitSearch} className="flex flex-wrap items-center gap-2 flex-1 min-w-0">
           <Search className="w-4 h-4 text-gray-400 shrink-0" />
           <input
             type="text"
@@ -65,21 +100,43 @@ export default function AdminEventsClient({ events: initialEvents }: { events: E
             className="input"
             placeholder="ค้นหากิจกรรม..."
           />
-        </div>
+          <select
+            value={statusFilter}
+            onChange={e => {
+              setStatusFilter(e.target.value)
+              goToPage(1, search, e.target.value)
+            }}
+            className="input w-36"
+          >
+            <option value="all">ทั้งหมด</option>
+            <option value="open">เปิดรับ</option>
+            <option value="closed">ปิดรับ</option>
+          </select>
+          <button type="submit" className="btn-primary text-sm px-4">ค้นหา</button>
+          {(query || status !== 'all') && (
+            <button type="button" onClick={() => goToPage(1, '', 'all')} className="btn-secondary text-sm px-4">
+              ล้าง
+            </button>
+          )}
+        </form>
         <Link href="/staff/events/new" className="btn-primary flex items-center gap-2 text-sm">
           <Plus className="w-4 h-4" /> สร้างกิจกรรมใหม่
         </Link>
       </div>
 
+      <div className="text-sm text-gray-500 px-1">
+        แสดง <strong>{firstItem}-{lastItem}</strong> จาก {totalEvents} กิจกรรม
+      </div>
+
       {/* Events Grid */}
-      {!filtered.length ? (
+      {!events.length ? (
         <div className="card p-16 text-center">
           <Calendar className="w-10 h-10 text-gray-300 mx-auto mb-3" />
           <p className="text-gray-400">ไม่พบกิจกรรม</p>
         </div>
       ) : (
         <div className="grid gap-4">
-          {filtered.map(ev => (
+          {events.map(ev => (
             <div key={ev.id} className="card p-5">
               <div className="flex flex-col sm:flex-row sm:items-center gap-4">
                 {/* Info */}
@@ -167,6 +224,26 @@ export default function AdminEventsClient({ events: initialEvents }: { events: E
           ))}
         </div>
       )}
+
+      <div className="card px-5 py-3 flex flex-col sm:flex-row items-center justify-between gap-3">
+        <p className="text-xs text-gray-400">หน้า {page} จาก {totalPages}</p>
+        <div className="flex gap-2">
+          <button
+            onClick={() => goToPage(page - 1, query, status)}
+            disabled={page <= 1}
+            className="btn-secondary text-sm px-4 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            ก่อนหน้า
+          </button>
+          <button
+            onClick={() => goToPage(page + 1, query, status)}
+            disabled={page >= totalPages}
+            className="btn-secondary text-sm px-4 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            ถัดไป
+          </button>
+        </div>
+      </div>
     </div>
   )
 }

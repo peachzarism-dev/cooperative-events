@@ -3,12 +3,22 @@
 import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
 import { formatDateTH } from '@/lib/utils'
-import { Plus, Calendar, Users, ToggleLeft, ToggleRight, ChevronRight } from 'lucide-react'
+import { Plus, Calendar, ToggleLeft, ToggleRight, ChevronRight, Search } from 'lucide-react'
 
-export default async function StaffEventsPage() {
+export default async function StaffEventsPage({
+  searchParams,
+}: {
+  searchParams?: { q?: string; page?: string; status?: string }
+}) {
   const supabase = await createClient()
+  const pageSize = 20
+  const query = (searchParams?.q || '').trim()
+  const status = searchParams?.status || 'all'
+  const page = Math.max(Number(searchParams?.page || '1'), 1)
+  const from = (page - 1) * pageSize
+  const to = from + pageSize - 1
 
-  const { data: events } = await supabase
+  let eventsQuery = supabase
     .from('events')
     .select(`
       id,
@@ -21,9 +31,35 @@ export default async function StaffEventsPage() {
       registration_round,
       max_participants,
       event_stats(total_registered, total_checked_in)
-    `)
+    `, { count: 'exact' })
     .is('deleted_at', null)
     .order('start_date', { ascending: false })
+    .range(from, to)
+
+  if (query) {
+    const safeQuery = query.replace(/[,()]/g, ' ')
+    eventsQuery = eventsQuery.or(`title.ilike.%${safeQuery}%,location.ilike.%${safeQuery}%`)
+  }
+
+  if (status === 'open') {
+    eventsQuery = eventsQuery.eq('is_registration_open', true)
+  } else if (status === 'closed') {
+    eventsQuery = eventsQuery.eq('is_registration_open', false)
+  }
+
+  const { data: events, count } = await eventsQuery
+  const totalEvents = count || 0
+  const totalPages = Math.max(Math.ceil(totalEvents / pageSize), 1)
+  const firstItem = totalEvents === 0 ? 0 : (page - 1) * pageSize + 1
+  const lastItem = Math.min(page * pageSize, totalEvents)
+
+  function pageHref(nextPage: number) {
+    const params = new URLSearchParams()
+    if (query) params.set('q', query)
+    if (status !== 'all') params.set('status', status)
+    if (nextPage > 1) params.set('page', nextPage.toString())
+    return `/staff/events${params.toString() ? `?${params.toString()}` : ''}`
+  }
 
   return (
     <div>
@@ -37,6 +73,30 @@ export default async function StaffEventsPage() {
           <Plus className="w-4 h-4" />
           สร้างกิจกรรมใหม่
         </Link>
+      </div>
+
+      <form className="card p-4 mb-4 flex flex-wrap items-center gap-2">
+        <Search className="w-4 h-4 text-gray-400 shrink-0" />
+        <input
+          type="text"
+          name="q"
+          defaultValue={query}
+          className="input flex-1 min-w-[220px]"
+          placeholder="ค้นหากิจกรรม..."
+        />
+        <select name="status" defaultValue={status} className="input w-36">
+          <option value="all">ทั้งหมด</option>
+          <option value="open">เปิดรับ</option>
+          <option value="closed">ปิดรับ</option>
+        </select>
+        <button type="submit" className="btn-primary text-sm px-4">ค้นหา</button>
+        {(query || status !== 'all') && (
+          <Link href="/staff/events" className="btn-secondary text-sm px-4">ล้าง</Link>
+        )}
+      </form>
+
+      <div className="text-sm text-gray-500 px-1 mb-4">
+        แสดง <strong>{firstItem}-{lastItem}</strong> จาก {totalEvents} กิจกรรม
       </div>
 
       {/* Events Grid */}
@@ -107,6 +167,24 @@ export default async function StaffEventsPage() {
           })}
         </div>
       )}
+
+      <div className="card px-5 py-3 mt-4 flex flex-col sm:flex-row items-center justify-between gap-3">
+        <p className="text-xs text-gray-400">หน้า {page} จาก {totalPages}</p>
+        <div className="flex gap-2">
+          <Link
+            href={pageHref(page - 1)}
+            className={`btn-secondary text-sm px-4 ${page <= 1 ? 'opacity-50 pointer-events-none' : ''}`}
+          >
+            ก่อนหน้า
+          </Link>
+          <Link
+            href={pageHref(page + 1)}
+            className={`btn-secondary text-sm px-4 ${page >= totalPages ? 'opacity-50 pointer-events-none' : ''}`}
+          >
+            ถัดไป
+          </Link>
+        </div>
+      </div>
     </div>
   )
 }
