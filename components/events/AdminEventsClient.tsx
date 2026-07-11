@@ -90,38 +90,42 @@ export default function AdminEventsClient({
   return (
     <div className="space-y-4">
       {/* Toolbar */}
-      <div className="card p-4 flex flex-wrap gap-3 items-center justify-between">
-        <form onSubmit={submitSearch} className="flex flex-wrap items-center gap-2 flex-1 min-w-0">
-          <Search className="w-4 h-4 text-gray-400 shrink-0" />
-          <input
-            type="text"
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            className="input"
-            placeholder="ค้นหากิจกรรม..."
-          />
-          <select
-            value={statusFilter}
-            onChange={e => {
-              setStatusFilter(e.target.value)
-              goToPage(1, search, e.target.value)
-            }}
-            className="input w-36"
-          >
-            <option value="all">ทั้งหมด</option>
-            <option value="open">เปิดรับ</option>
-            <option value="closed">ปิดรับ</option>
-          </select>
-          <button type="submit" className="btn-primary text-sm px-4">ค้นหา</button>
-          {(query || status !== 'all') && (
-            <button type="button" onClick={() => goToPage(1, '', 'all')} className="btn-secondary text-sm px-4">
-              ล้าง
-            </button>
-          )}
-        </form>
-        <Link href="/staff/events/new" className="btn-primary flex items-center gap-2 text-sm">
+      <div className="card p-4">
+        <div className="grid gap-3 lg:grid-cols-[1fr_auto] lg:items-start">
+          <form onSubmit={submitSearch} className="grid gap-2 sm:grid-cols-[1fr_10rem_auto_auto]">
+            <div className="relative min-w-0">
+              <Search className="absolute left-3 top-1/2 w-4 h-4 -translate-y-1/2 text-gray-400" />
+              <input
+                type="text"
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                className="input pl-9"
+                placeholder="ค้นหากิจกรรม..."
+              />
+            </div>
+            <select
+              value={statusFilter}
+              onChange={e => {
+                setStatusFilter(e.target.value)
+                goToPage(1, search, e.target.value)
+              }}
+              className="input"
+            >
+              <option value="all">ทั้งหมด</option>
+              <option value="open">เปิดรับ</option>
+              <option value="closed">ปิดรับ</option>
+            </select>
+            <button type="submit" className="btn-primary text-sm px-4 whitespace-nowrap">ค้นหา</button>
+            {(query || status !== 'all') && (
+              <button type="button" onClick={() => goToPage(1, '', 'all')} className="btn-secondary text-sm px-4 whitespace-nowrap">
+                ล้าง
+              </button>
+            )}
+          </form>
+          <Link href="/staff/events/new" className="btn-primary flex items-center justify-center gap-2 text-sm whitespace-nowrap lg:justify-self-end">
           <Plus className="w-4 h-4" /> สร้างกิจกรรมใหม่
-        </Link>
+          </Link>
+        </div>
       </div>
 
       <div className="text-sm text-gray-500 px-1">
