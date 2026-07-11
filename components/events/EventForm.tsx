@@ -350,9 +350,10 @@ function ToggleField({ label, desc, checked, onChange }: {
       <button
         type="button"
         onClick={() => onChange(!checked)}
-        className={`relative w-11 h-6 rounded-full transition-colors ${checked ? 'bg-primary-600' : 'bg-gray-200'}`}
+        className={`relative h-8 w-14 shrink-0 overflow-hidden rounded-full transition-colors ${checked ? 'bg-primary-600' : 'bg-gray-200'}`}
+        aria-pressed={checked}
       >
-        <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${checked ? 'translate-x-5' : 'translate-x-0.5'}`} />
+        <span className={`pointer-events-none absolute left-[3px] top-[3px] h-[26px] w-[26px] rounded-full bg-white shadow transition-transform duration-200 ${checked ? 'translate-x-6' : 'translate-x-0'}`} />
       </button>
     </div>
   )
