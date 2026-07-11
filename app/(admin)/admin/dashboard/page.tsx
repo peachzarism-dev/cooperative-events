@@ -23,12 +23,12 @@ export default async function AdminDashboardPage() {
     { count: totalMembers },
     { count: totalStaff },
   ] = await Promise.all([
-    supabase.from('events').select('*', { count: 'exact', head: true }).is('deleted_at', null),
-    supabase.from('events').select('*', { count: 'exact', head: true }).is('deleted_at', null).eq('is_registration_open', true),
-    supabase.from('registrations').select('*', { count: 'exact', head: true }).eq('status', 'active'),
-    supabase.from('check_ins').select('*', { count: 'exact', head: true }),
-    supabase.from('cooperative_members').select('*', { count: 'exact', head: true }).eq('is_active', true),
-    supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('is_active', true),
+    supabase.from('events').select('id', { count: 'exact', head: true }).is('deleted_at', null),
+    supabase.from('events').select('id', { count: 'exact', head: true }).is('deleted_at', null).eq('is_registration_open', true),
+    supabase.from('registrations').select('id', { count: 'exact', head: true }).eq('status', 'active'),
+    supabase.from('check_ins').select('id', { count: 'exact', head: true }),
+    supabase.from('cooperative_members').select('id', { count: 'exact', head: true }).eq('is_active', true),
+    supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('is_active', true),
   ])
 
   // Events with stats

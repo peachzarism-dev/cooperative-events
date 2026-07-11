@@ -7,7 +7,12 @@ import { UserPlus, ToggleLeft, ToggleRight, Shield, User } from 'lucide-react'
 import type { Profile } from '@/types/database'
 import { formatDateTimeTH } from '@/lib/utils'
 
-export default function UsersClient({ initialUsers }: { initialUsers: Profile[] }) {
+type UserRow = Pick<
+  Profile,
+  'id' | 'email' | 'full_name' | 'role' | 'is_active' | 'last_login' | 'created_at' | 'updated_at'
+>
+
+export default function UsersClient({ initialUsers }: { initialUsers: UserRow[] }) {
   const supabase = createClient()
   const [users, setUsers] = useState(initialUsers)
   const [showAdd, setShowAdd] = useState(false)
@@ -40,7 +45,7 @@ export default function UsersClient({ initialUsers }: { initialUsers: Profile[] 
     setLoading(false)
   }
 
-  async function toggleUser(user: Profile) {
+  async function toggleUser(user: UserRow) {
     const { error } = await supabase
       .from('profiles')
       .update({ is_active: !user.is_active })

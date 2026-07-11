@@ -11,27 +11,28 @@ export default async function StaffDashboardPage() {
   const { data: profile } = await supabase
     .from('profiles').select('full_name, role').eq('id', user!.id).single()
 
-  // กิจกรรมทั้งหมด (ไม่ถูกลบ)
-  const { data: events } = await supabase
-    .from('events')
-    .select('id, title, start_date, is_registration_open, is_multi_day, max_participants')
-    .is('deleted_at', null)
-    .order('start_date', { ascending: false })
-    .limit(5)
-
-  // สถิติรวม
-  const { count: totalEvents } = await supabase
-    .from('events').select('*', { count: 'exact', head: true }).is('deleted_at', null)
-
-  const { count: totalRegistrations } = await supabase
-    .from('registrations').select('*', { count: 'exact', head: true }).eq('status', 'active')
-
-  const { count: totalCheckins } = await supabase
-    .from('check_ins').select('*', { count: 'exact', head: true })
-
-  const { count: openEvents } = await supabase
-    .from('events').select('*', { count: 'exact', head: true })
-    .is('deleted_at', null).eq('is_registration_open', true)
+  const [
+    { data: events },
+    { count: totalEvents },
+    { count: totalRegistrations },
+    { count: totalCheckins },
+    { count: openEvents },
+  ] = await Promise.all([
+    supabase
+      .from('events')
+      .select('id, title, start_date, is_registration_open, is_multi_day, max_participants')
+      .is('deleted_at', null)
+      .order('start_date', { ascending: false })
+      .limit(5),
+    supabase.from('events').select('id', { count: 'exact', head: true }).is('deleted_at', null),
+    supabase.from('registrations').select('id', { count: 'exact', head: true }).eq('status', 'active'),
+    supabase.from('check_ins').select('id', { count: 'exact', head: true }),
+    supabase
+      .from('events')
+      .select('id', { count: 'exact', head: true })
+      .is('deleted_at', null)
+      .eq('is_registration_open', true),
+  ])
 
   return (
     <div className="space-y-6">

@@ -10,7 +10,18 @@ export default async function StaffEventsPage() {
 
   const { data: events } = await supabase
     .from('events')
-    .select('*, event_stats(*)')
+    .select(`
+      id,
+      title,
+      location,
+      start_date,
+      end_date,
+      is_multi_day,
+      is_registration_open,
+      registration_round,
+      max_participants,
+      event_stats(total_registered, total_checked_in)
+    `)
     .is('deleted_at', null)
     .order('start_date', { ascending: false })
 

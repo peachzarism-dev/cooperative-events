@@ -11,7 +11,9 @@ import {
 } from 'lucide-react'
 import { useState } from 'react'
 
-interface Props { profile: Profile }
+interface Props {
+  profile: Pick<Profile, 'id' | 'email' | 'full_name' | 'role' | 'is_active'>
+}
 
 const staffNav = [
   { href: '/staff/dashboard', label: 'ภาพรวม', icon: LayoutDashboard },

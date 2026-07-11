@@ -8,14 +8,35 @@ export default async function AdminEventsPage() {
 
   const { data: events } = await supabase
     .from('events')
-    .select('*')
+    .select(`
+      id,
+      title,
+      description,
+      location,
+      start_date,
+      end_date,
+      is_multi_day,
+      max_participants,
+      is_registration_open,
+      registration_round,
+      allow_public,
+      slug,
+      created_by,
+      updated_by,
+      deleted_at,
+      draw_closed_at,
+      draw_closed_by,
+      created_at,
+      updated_at,
+      closed_message
+    `)
     .is('deleted_at', null)
     .order('start_date', { ascending: false })
 
   // ดึงสถิติแยก
   const { data: stats } = await supabase
     .from('event_stats')
-    .select('*')
+    .select('event_id, total_registered, total_checked_in, total_no_show, quota_remaining')
 
   const eventsWithStats = (events || []).map(ev => ({
     ...ev,

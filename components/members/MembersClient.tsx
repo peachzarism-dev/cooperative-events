@@ -1,29 +1,57 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useEffect, useState, useRef } from 'react'
+import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import Papa from 'papaparse'
 import { toast } from 'sonner'
 import { Upload, Search, UserPlus, Edit2, ToggleLeft, ToggleRight, Download } from 'lucide-react'
 import type { CooperativeMember } from '@/types/database'
-import { formatDateTH } from '@/lib/utils'
 
-export default function MembersClient({ initialMembers }: { initialMembers: CooperativeMember[] }) {
+export default function MembersClient({
+  initialMembers,
+  totalMembers,
+  page,
+  pageSize,
+  query,
+}: {
+  initialMembers: CooperativeMember[]
+  totalMembers: number
+  page: number
+  pageSize: number
+  query: string
+}) {
   const supabase = createClient()
+  const router = useRouter()
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [members, setMembers] = useState(initialMembers)
-  const [search, setSearch] = useState('')
+  const [search, setSearch] = useState(query)
   const [importing, setImporting] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editForm, setEditForm] = useState({ full_name: '', phone: '', email: '' })
   const [showAddForm, setShowAddForm] = useState(false)
   const [newMember, setNewMember] = useState({ member_no: '', full_name: '', phone: '', email: '' })
 
-  const filtered = members.filter(m =>
-    m.full_name.includes(search) ||
-    m.member_no.includes(search) ||
-    (m.email || '').includes(search)
-  )
+  const totalPages = Math.max(Math.ceil(totalMembers / pageSize), 1)
+  const firstItem = totalMembers === 0 ? 0 : (page - 1) * pageSize + 1
+  const lastItem = Math.min(page * pageSize, totalMembers)
+
+  useEffect(() => {
+    setMembers(initialMembers)
+    setSearch(query)
+  }, [initialMembers, query])
+
+  function goToPage(nextPage: number, nextQuery = query) {
+    const params = new URLSearchParams()
+    if (nextQuery.trim()) params.set('q', nextQuery.trim())
+    if (nextPage > 1) params.set('page', nextPage.toString())
+    router.push(`/admin/members${params.toString() ? `?${params.toString()}` : ''}`)
+  }
+
+  function submitSearch(e: React.FormEvent) {
+    e.preventDefault()
+    goToPage(1, search)
+  }
 
   // ─── Import CSV ─────────────────────────────────────────────
   function handleImportCSV(e: React.ChangeEvent<HTMLInputElement>) {
@@ -46,7 +74,7 @@ export default function MembersClient({ initialMembers }: { initialMembers: Coop
         const { data: inserted, error } = await supabase
           .from('cooperative_members')
           .upsert(rows, { onConflict: 'member_no' })
-          .select()
+          .select('id')
 
         if (error) {
           toast.error('Import ไม่สำเร็จ: ' + error.message)
@@ -63,9 +91,7 @@ export default function MembersClient({ initialMembers }: { initialMembers: Coop
             },
           })
           toast.success(`Import สำเร็จ ${inserted?.length || 0} รายการ`)
-          const { data: refreshed } = await supabase
-            .from('cooperative_members').select('*').order('member_no')
-          setMembers(refreshed || [])
+          router.refresh()
         }
         setImporting(false)
         if (fileInputRef.current) fileInputRef.current.value = ''
@@ -91,7 +117,7 @@ export default function MembersClient({ initialMembers }: { initialMembers: Coop
     const { data, error } = await supabase
       .from('cooperative_members')
       .insert({ ...newMember, is_active: true })
-      .select().single()
+      .select('id, member_no, full_name, phone, email, is_active, created_at, updated_at').single()
 
     if (error) { toast.error('เพิ่มสมาชิกไม่สำเร็จ: ' + error.message); return }
     const { data: { user } } = await supabase.auth.getUser()
@@ -107,6 +133,7 @@ export default function MembersClient({ initialMembers }: { initialMembers: Coop
       },
     })
     setMembers(prev => [data, ...prev])
+    router.refresh()
     setNewMember({ member_no: '', full_name: '', phone: '', email: '' })
     setShowAddForm(false)
     toast.success('เพิ่มสมาชิกสำเร็จ')
@@ -164,7 +191,7 @@ export default function MembersClient({ initialMembers }: { initialMembers: Coop
     <div className="space-y-4">
       {/* Toolbar */}
       <div className="card p-4 flex flex-wrap gap-3 items-center justify-between">
-        <div className="flex items-center gap-2 flex-1 min-w-0">
+        <form onSubmit={submitSearch} className="flex items-center gap-2 flex-1 min-w-0">
           <Search className="w-4 h-4 text-gray-400 shrink-0" />
           <input
             type="text"
@@ -173,7 +200,13 @@ export default function MembersClient({ initialMembers }: { initialMembers: Coop
             className="input flex-1"
             placeholder="ค้นหาชื่อ, เลขสมาชิก, อีเมล..."
           />
-        </div>
+          <button type="submit" className="btn-primary text-sm px-4">ค้นหา</button>
+          {query && (
+            <button type="button" onClick={() => goToPage(1, '')} className="btn-secondary text-sm px-4">
+              ล้าง
+            </button>
+          )}
+        </form>
         <div className="flex gap-2 flex-wrap">
           <button onClick={downloadTemplate} className="btn-secondary flex items-center gap-2 text-sm">
             <Download className="w-4 h-4" /> Template CSV
@@ -230,7 +263,8 @@ export default function MembersClient({ initialMembers }: { initialMembers: Coop
       <div className="card overflow-hidden">
         <div className="px-5 py-3 border-b border-gray-100 flex items-center justify-between">
           <p className="text-sm text-gray-500">
-            แสดง <strong>{filtered.length}</strong> จาก {members.length} รายการ
+            แสดง <strong>{firstItem}-{lastItem}</strong> จาก {totalMembers} รายการ
+            {query && <span className="ml-1">สำหรับ “{query}”</span>}
           </p>
         </div>
         <div className="overflow-x-auto">
@@ -246,7 +280,7 @@ export default function MembersClient({ initialMembers }: { initialMembers: Coop
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
-              {filtered.map(member => (
+              {members.map(member => (
                 <tr key={member.id} className={`hover:bg-gray-50 ${!member.is_active ? 'opacity-50' : ''}`}>
                   <td className="px-4 py-3 font-mono text-xs">{member.member_no}</td>
                   <td className="px-4 py-3">
@@ -308,9 +342,28 @@ export default function MembersClient({ initialMembers }: { initialMembers: Coop
               ))}
             </tbody>
           </table>
-          {!filtered.length && (
+          {!members.length && (
             <p className="text-center text-gray-400 text-sm py-10">ไม่พบข้อมูลสมาชิก</p>
           )}
+        </div>
+        <div className="px-5 py-3 border-t border-gray-100 flex flex-col sm:flex-row items-center justify-between gap-3">
+          <p className="text-xs text-gray-400">หน้า {page} จาก {totalPages}</p>
+          <div className="flex gap-2">
+            <button
+              onClick={() => goToPage(page - 1)}
+              disabled={page <= 1}
+              className="btn-secondary text-sm px-4 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              ก่อนหน้า
+            </button>
+            <button
+              onClick={() => goToPage(page + 1)}
+              disabled={page >= totalPages}
+              className="btn-secondary text-sm px-4 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              ถัดไป
+            </button>
+          </div>
         </div>
       </div>
     </div>
