@@ -41,17 +41,36 @@ export default async function EventDashboardPage({ params }: { params: { id: str
     .eq('event_id', params.id)
     .single()
 
-  // ดึง check-ins ล่าสุด
-  const { data: recentCheckIns } = await supabase
-    .from('check_ins')
-    .select(`
-      id, checked_in_at,
-      registrations(full_name, is_member),
-      event_days(label)
-    `)
-    .eq('registrations.event_id', params.id)
-    .order('checked_in_at', { ascending: false })
-    .limit(10)
+  // ดึง activity ล่าสุดเฉพาะกิจกรรมนี้
+  const { data: eventRegistrations } = await supabase
+    .from('registrations')
+    .select('id')
+    .eq('event_id', params.id)
+
+  const registrationIds = eventRegistrations?.map(reg => reg.id) || []
+
+  const [{ data: eventLogs }, { data: registrationLogs }] = await Promise.all([
+    supabase
+      .from('activity_logs')
+      .select('id, action, metadata, created_at, profiles(full_name)')
+      .eq('target_type', 'event')
+      .eq('target_id', params.id)
+      .order('created_at', { ascending: false })
+      .limit(10),
+    registrationIds.length
+      ? supabase
+          .from('activity_logs')
+          .select('id, action, metadata, created_at, profiles(full_name)')
+          .eq('target_type', 'registration')
+          .in('target_id', registrationIds)
+          .order('created_at', { ascending: false })
+          .limit(10)
+      : Promise.resolve({ data: [] as any[] }),
+  ])
+
+  const recentActivities = [...(eventLogs || []), ...(registrationLogs || [])]
+    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+    .slice(0, 10)
 
   const registrationUrl = getRegistrationUrl(event.slug)
 
@@ -157,35 +176,35 @@ export default async function EventDashboardPage({ params }: { params: { id: str
             <EventDashboardClient eventId={event.id} eventDays={event.event_days} />
           )}
 
-          {/* Recent check-ins */}
+          {/* Recent activities */}
           <div className="card">
             <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
-              <h2 className="font-semibold text-gray-800">Check-in ล่าสุด</h2>
+              <h2 className="font-semibold text-gray-800">กิจกรรมล่าสุดของกิจกรรมนี้</h2>
               <Link href={`/staff/events/${event.id}/registrations`} className="text-sm text-primary-600 hover:underline">
                 ดูทั้งหมด →
               </Link>
             </div>
             <div className="divide-y divide-gray-50">
-              {!recentCheckIns?.length ? (
-                <p className="text-center text-gray-400 text-sm py-8">ยังไม่มีการ Check-in</p>
-              ) : recentCheckIns.map(ci => {
-                const reg = (ci as any).registrations
-                const day = (ci as any).event_days
+              {!recentActivities.length ? (
+                <p className="text-center text-gray-400 text-sm py-8">ยังไม่มีกิจกรรมล่าสุด</p>
+              ) : recentActivities.map(log => {
+                const meta = log.metadata as any
+                const actor = (log as any).profiles?.full_name
+                const activity = getActivityDisplay(log.action, meta)
                 return (
-                  <div key={ci.id} className="flex items-center gap-3 px-5 py-3">
-                    <div className="w-8 h-8 rounded-full bg-success-100 flex items-center justify-center shrink-0">
-                      <UserCheck className="w-4 h-4 text-success-600" />
+                  <div key={log.id} className="flex items-center gap-3 px-5 py-3">
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${activity.iconBg}`}>
+                      {activity.icon}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-gray-800 truncate">{reg?.full_name}</p>
+                      <p className="text-sm font-medium text-gray-800 truncate">{activity.title}</p>
                       <p className="text-xs text-gray-400">
-                        {day?.label ? `${day.label} · ` : ''}
-                        {formatDateTimeTH(ci.checked_in_at)}
+                        {activity.detail ? `${activity.detail} · ` : ''}
+                        {formatDateTimeTH(log.created_at)}
+                        {actor ? ` · โดย ${actor}` : ''}
                       </p>
                     </div>
-                    <span className={reg?.is_member ? 'badge-blue' : 'badge-gray'}>
-                      {reg?.is_member ? 'สมาชิก' : 'บุคคลทั่วไป'}
-                    </span>
+                    <span className={activity.badgeClass}>{activity.badge}</span>
                   </div>
                 )
               })}
@@ -211,6 +230,79 @@ export default async function EventDashboardPage({ params }: { params: { id: str
       </div>
     </div>
   )
+}
+
+function getActivityDisplay(action: string, meta: any) {
+  if (action === 'registration_created') {
+    return {
+      title: meta?.full_name || 'มีผู้ลงทะเบียนใหม่',
+      detail: 'ลงทะเบียนใหม่',
+      badge: 'ลงทะเบียน',
+      badgeClass: 'badge-blue',
+      iconBg: 'bg-primary-100',
+      icon: <Users className="w-4 h-4 text-primary-600" />,
+    }
+  }
+
+  if (action === 'checkin_completed') {
+    return {
+      title: meta?.full_name || 'มีผู้ Check-in',
+      detail: meta?.event_day ? `Check-in · ${meta.event_day}` : 'Check-in',
+      badge: 'Check-in',
+      badgeClass: 'badge-success',
+      iconBg: 'bg-success-100',
+      icon: <UserCheck className="w-4 h-4 text-success-600" />,
+    }
+  }
+
+  if (action === 'registration_cancelled') {
+    return {
+      title: meta?.full_name || 'มีการยกเลิกลงทะเบียน',
+      detail: meta?.cancelled_by === 'self' ? 'ขอยกเลิกด้วยตัวเอง' : 'เจ้าหน้าที่ยกเลิก',
+      badge: 'ยกเลิก',
+      badgeClass: 'badge-danger',
+      iconBg: 'bg-danger-100',
+      icon: <UserX className="w-4 h-4 text-danger-600" />,
+    }
+  }
+
+  if (action === 'draw_conducted') {
+    return {
+      title: meta?.full_name || 'สุ่มรางวัล',
+      detail: meta?.prize_label ? `ได้รับรางวัล: ${meta.prize_label}` : 'สุ่มรางวัล',
+      badge: 'รางวัล',
+      badgeClass: 'badge-gray',
+      iconBg: 'bg-amber-100',
+      icon: <Gift className="w-4 h-4 text-amber-600" />,
+    }
+  }
+
+  if (action === 'event_updated') {
+    const detail =
+      meta?.registration_open === true ? 'เปิดรับลงทะเบียน' :
+      meta?.registration_open === false ? 'ปิดรับลงทะเบียน' :
+      meta?.draw_status === 'closed' ? 'จบการจับรางวัล' :
+      meta?.draw_status === 'reopened' ? 'เปิดให้สุ่มต่อ' :
+      'แก้ไขกิจกรรม'
+
+    return {
+      title: detail,
+      detail: meta?.title || '',
+      badge: 'กิจกรรม',
+      badgeClass: 'badge-gray',
+      iconBg: 'bg-gray-100',
+      icon: <Settings className="w-4 h-4 text-gray-600" />,
+    }
+  }
+
+  return {
+    title: meta?.title || action,
+    detail: meta?.full_name || '',
+    badge: 'ระบบ',
+    badgeClass: 'badge-gray',
+    iconBg: 'bg-gray-100',
+    icon: <Settings className="w-4 h-4 text-gray-600" />,
+  }
 }
 
 function StatCard({ label, value, sub, color, icon }: {

@@ -26,6 +26,12 @@ export async function POST(req: NextRequest) {
   }
 
   const supabase = await createAdminClient()
+  const { data: registration } = await supabase
+    .from('registrations')
+    .select('full_name, event_id, events(title)')
+    .eq('id', registrationId)
+    .single()
+
   const { error } = await supabase
     .from('registrations')
     .update({
@@ -44,7 +50,13 @@ export async function POST(req: NextRequest) {
     action: 'registration_cancelled',
     target_type: 'registration',
     target_id: registrationId,
-    metadata: { cancelled_by: 'self', qr_token: qrToken },
+    metadata: {
+      cancelled_by: 'self',
+      qr_token: qrToken,
+      full_name: registration?.full_name,
+      event_id: registration?.event_id,
+      title: (registration?.events as any)?.title,
+    },
   })
 
   otpStore.delete(registrationId)
